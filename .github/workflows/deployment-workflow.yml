@@ -55,14 +55,14 @@ jobs:
 
       - name: Helm dry run
         run: |
-          helm install todoapp ./todoapp-*.tgz \
+          helm install ${{ inputs.helm-release-name }} ./todoapp-*.tgz \
             --dry-run --debug \
             -f ${{ inputs.helm-values-path }} \
-            --set todoapp.image.version="${{ github.sha }}"
+            --set todoapp.image.version="${{ inputs.version }}"
 
       - name: Deploy Helm to kind
         run: |
-          helm upgrade --install todoapp ./todoapp-*.tgz \
+          helm upgrade --install ${{ inputs.helm-release-name }} ./todoapp-*.tgz \
             --atomic \
             --wait \
             --timeout 10m \
@@ -74,4 +74,4 @@ jobs:
             --set todoapp.secrets.password="${{ secrets.PASSWORD }}" \
             --set todoapp.secrets.login="${{ secrets.LOGIN }}" \
             --set todoapp.secrets.DB_CONNECTION="${{ secrets.DB_CONNECTION }}" \
-            --set todoapp.image.version="${{ github.sha }}"
+            --set todoapp.image.version="${{ inputs.version }}"
