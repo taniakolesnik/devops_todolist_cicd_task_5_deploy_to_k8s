@@ -119,58 +119,22 @@ jobs:
         name: helm-package
         path: ./*.tgz
 
-  deploy-helm:
+  deploy-helm-dev:
     name: Deploy Helm
-    environment: development
-    runs-on: ubuntu-latest
-    needs: [docker-ci, helm-ci]
-    if: github.ref_name == 'main'
-    steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: helm-package
-        path: .
+    uses: ./.github/workflows/deployment-workflow.yml
+    needs: [helm-ci, docker-ci]
+    secrets: inherit
+    with:
+      environment: development
+      version: ${{ github.sha }}
 
-    - name: Set up Helm
-      uses: azure/setup-helm@v4.2.0
-
-    - uses: actions/download-artifact@v4
-      with:
-        name: helm-artifacts
-        path: .
-
-    - name: Set up Kubectl
-      uses: azure/setup-kubectl@v4
-
-    - uses: azure/login@v2
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Set up kind cluster
-      uses: helm/kind-action@v1
-      with:
-        config: ./cluster.yml
-        cluster_name: todoapp
-
-    - name: Helm dry run
-      run: |
-        helm install todoapp ./todoapp-*.tgz \
-          --dry-run --debug \
-          -f ./todoapp/values.yaml \
-          --set todoapp.image.version="${{ github.sha }}"
-
-    - name: Deploy Helm to kind
-      run: |
-        helm upgrade --install todoapp ./todoapp-*.tgz \
-          --atomic \
-          --wait \
-          --timeout 10m \
-          --debug \
-          -f ./todoapp/values.yaml \
-          --set mysql.configs.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
-          --set mysql.configs.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
-          --set mysql.configs.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
-          --set todoapp.secrets.password="${{ secrets.PASSWORD }}" \
-          --set todoapp.secrets.login="${{ secrets.LOGIN }}" \
-          --set todoapp.secrets.DB_CONNECTION="${{ secrets.DB_CONNECTION }}" \
-          --set todoapp.image.version="${{ github.sha }}"
+  deploy-helm-staging:
+    name: Deploy Helm to Staging
+    uses: ./.github/workflows/deployment-workflow.yml
+    needs: deploy-helm-dev
+    secrets: inherit
+    with:
+      environment: staging
+      helm-values-path: ./todoapp/values/stg.yml
+      helm-release-name: todoapp-staging
+      version: ${{ github.sha }}
