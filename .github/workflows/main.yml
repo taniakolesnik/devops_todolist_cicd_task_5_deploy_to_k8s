@@ -146,21 +146,31 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - uses: azure/aks-set-context@v3
-
+    - name: Set up kind cluster
+      uses: helm/kind-action@v1
       with:
-        cluster-name: ${{ vars.AZURE_CLUSTER_NAME }}
-        resource-group: ${{ vars.AZURE_RESOURCE_GROUP }}
+        config: ./cluster.yml
+        cluster_name: todoapp
 
-    - name: Deploy Helm to Development
+    - name: Helm dry run
       run: |
-        helm upgrade --install --atomic --wait --timeout 3600s --debug todoapp ./todoapp-*.tgz \
-        -f ./todoapp/values.yaml \
-        --set mysql.configs.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
-        --set mysql.configs.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
-        --set mysql.configs.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
-        --set todoapp.secrets.password="${{ secrets.PASSWORD }}" \
-        --set todoapp.secrets.login="${{ secrets.LOGIN }}" \
-        --set todoapp.secrets.DB_CONNECTION="${{ secrets.DB_CONNECTION }}" \
-        --set todoapp.image.version="${{ github.sha }}"
+        helm install todoapp ./todoapp-*.tgz \
+          --dry-run --debug \
+          -f ./todoapp/values.yaml \
+          --set todoapp.image.version="${{ github.sha }}"
 
+    - name: Deploy Helm to kind
+      run: |
+        helm upgrade --install todoapp ./todoapp-*.tgz \
+          --atomic \
+          --wait \
+          --timeout 10m \
+          --debug \
+          -f ./todoapp/values.yaml \
+          --set mysql.configs.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
+          --set mysql.configs.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
+          --set mysql.configs.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
+          --set todoapp.secrets.password="${{ secrets.PASSWORD }}" \
+          --set todoapp.secrets.login="${{ secrets.LOGIN }}" \
+          --set todoapp.secrets.DB_CONNECTION="${{ secrets.DB_CONNECTION }}" \
+          --set todoapp.image.version="${{ github.sha }}"
