@@ -10,7 +10,7 @@ on:
 
 env:
   PythonVersion: 3.8
-  DockerImageName: todoapp
+  DockerImageName: taniakolesnik/todoapp
 
 jobs:
   python-ci:
@@ -118,3 +118,17 @@ jobs:
       with:
         name: helm-package
         path: ./*.tgz
+
+
+  helm-deploy:
+    runs-on: ubuntu-latest
+    needs: [helm-ci, docker-ci]
+    if: github.ref_name == 'main'
+    name: Helm Deploy
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: helm-package
+        path: .
+    - name: Set up Helm
+      uses: azure/setup-helm@v4.2.0
